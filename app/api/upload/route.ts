@@ -12,7 +12,15 @@ export async function POST(request: Request): Promise<NextResponse> {
       request,
       onBeforeGenerateToken: async (pathname) => {
         const info = decodePathname(pathname);
-        if (!info || !isAllowedExtension(info.filename)) {
+        if (!info) {
+          console.error("upload rejected: failed to decode pathname", { pathname });
+          throw new Error("Unsupported file type.");
+        }
+        if (!isAllowedExtension(info.filename)) {
+          console.error("upload rejected: disallowed extension", {
+            pathname,
+            filename: info.filename,
+          });
           throw new Error("Unsupported file type.");
         }
 
@@ -29,6 +37,10 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(jsonResponse);
   } catch (error) {
+    console.error(
+      "upload token generation failed:",
+      error instanceof Error ? error.stack ?? error.message : error,
+    );
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Upload failed." },
       { status: 400 },
