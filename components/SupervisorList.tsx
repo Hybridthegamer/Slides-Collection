@@ -149,7 +149,11 @@ export default function SupervisorList({ items }: { items: SubmissionItem[] }) {
                   {new Date(item.uploadedAt).toLocaleString()}
                 </span>
               </div>
-              <a className="download-button" href={item.url} download={item.filename}>
+              <a
+                className="download-button"
+                href={`/api/download?url=${encodeURIComponent(item.url)}&filename=${encodeURIComponent(item.filename)}`}
+                download={item.filename}
+              >
                 Download
               </a>
             </li>
