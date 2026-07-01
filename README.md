@@ -2,8 +2,8 @@
 
 A lightweight slide submission system for project defenses.
 
-- **Students** go to `/` to upload their presentation slides (`.pptx`, `.ppt`, `.pdf`, up to 200MB) with their name and presentation topic — no account needed.
-- **Supervisors** go to `/supervisor` to see every submission (newest first, searchable by name) and download files straight to their PC.
+- **Students** go to `/` to upload their presentation slides (`.pptx`, `.ppt`, `.pdf`, up to 30MB) with their name and presentation topic — no account needed.
+- **Supervisors** go to `/supervisor` to see every submission (newest first, searchable by name), download files individually or all at once, and clear everything after a defense is done.
 
 No database — student name, topic, and original filename are encoded directly into the Vercel Blob pathname (see `lib/blob-naming.ts`), and the file list is read live from Blob storage.
 

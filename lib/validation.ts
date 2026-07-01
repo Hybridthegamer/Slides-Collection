@@ -8,7 +8,7 @@ export const ALLOWED_CONTENT_TYPES = [
   "application/octet-stream",
 ];
 
-export const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; // 200MB
+export const MAX_FILE_SIZE_BYTES = 30 * 1024 * 1024; // 30MB
 
 export const MAX_NAME_LENGTH = 100;
 export const MAX_TOPIC_LENGTH = 150;

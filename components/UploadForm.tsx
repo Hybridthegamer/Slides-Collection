@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { encodePathname } from "@/lib/blob-naming";
-import { ALLOWED_EXTENSIONS, validateUploadForm } from "@/lib/validation";
+import { ALLOWED_EXTENSIONS, MAX_FILE_SIZE_BYTES, validateUploadForm } from "@/lib/validation";
 
 // Multipart chunking only helps large files (parts are >=5MB) — for small
 // files it's pure overhead, adding extra round trips to Blob's storage
@@ -176,7 +176,9 @@ export default function UploadForm() {
           accept={ALLOWED_EXTENSIONS.join(",")}
           disabled={uploading}
         />
-        <small>Accepted: {ALLOWED_EXTENSIONS.join(", ")} (max 200MB)</small>
+        <small>
+          Accepted: {ALLOWED_EXTENSIONS.join(", ")} (max {MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB)
+        </small>
       </label>
 
       <button type="submit" disabled={uploading}>

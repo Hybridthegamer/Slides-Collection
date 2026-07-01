@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 
 export interface SubmissionItem {
@@ -27,9 +28,13 @@ type ZipStatus =
   | { kind: "error"; message: string }
   | { kind: "done"; failed: string[] };
 
+type ClearStatus = { kind: "idle" } | { kind: "working" } | { kind: "error"; message: string };
+
 export default function SupervisorList({ items }: { items: SubmissionItem[] }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [zipStatus, setZipStatus] = useState<ZipStatus>({ kind: "idle" });
+  const [clearStatus, setClearStatus] = useState<ClearStatus>({ kind: "idle" });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -89,7 +94,36 @@ export default function SupervisorList({ items }: { items: SubmissionItem[] }) {
     }
   }
 
+  async function handleClearAll() {
+    if (items.length === 0) return;
+
+    const secret = window.prompt(
+      `This will PERMANENTLY delete all ${items.length} submission(s). This cannot be undone.\n\nEnter the supervisor secret to confirm:`,
+    );
+    if (!secret) return;
+
+    setClearStatus({ kind: "working" });
+    try {
+      const response = await fetch("/api/clear-all", {
+        method: "POST",
+        headers: { "x-supervisor-secret": secret },
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? "Failed to clear submissions.");
+      }
+      setClearStatus({ kind: "idle" });
+      router.refresh();
+    } catch (err) {
+      setClearStatus({
+        kind: "error",
+        message: err instanceof Error ? err.message : "Failed to clear submissions.",
+      });
+    }
+  }
+
   const zipping = zipStatus.kind === "working";
+  const clearing = clearStatus.kind === "working";
 
   return (
     <div>
@@ -159,6 +193,22 @@ export default function SupervisorList({ items }: { items: SubmissionItem[] }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {items.length > 0 && (
+        <div className="danger-zone">
+          <button
+            type="button"
+            className="clear-all-button"
+            onClick={handleClearAll}
+            disabled={clearing}
+          >
+            {clearing ? "Clearing…" : "Clear All Submissions"}
+          </button>
+          {clearStatus.kind === "error" && (
+            <p className="message message-error">{clearStatus.message}</p>
+          )}
+        </div>
       )}
     </div>
   );
