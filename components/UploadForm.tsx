@@ -5,6 +5,12 @@ import { upload } from "@vercel/blob/client";
 import { encodePathname } from "@/lib/blob-naming";
 import { ALLOWED_EXTENSIONS, validateUploadForm } from "@/lib/validation";
 
+// Multipart chunking only helps large files (parts are >=5MB) — for small
+// files it's pure overhead, adding extra round trips to Blob's storage
+// endpoints that only increase the chance of a stall on a flaky connection.
+const MULTIPART_THRESHOLD_BYTES = 10 * 1024 * 1024;
+const UPLOAD_TIMEOUT_MS = 90_000;
+
 type Status = { kind: "idle" } | { kind: "uploading"; percentage: number } | { kind: "error"; message: string } | { kind: "success"; filename: string; name: string; topic: string };
 
 export default function UploadForm() {
@@ -25,6 +31,16 @@ export default function UploadForm() {
 
     setStatus({ kind: "uploading", percentage: 0 });
 
+    // Abort if nothing happens for a while, instead of letting the upload
+    // hang forever with no feedback or way to retry. Reset on every
+    // progress tick so a large-but-progressing upload isn't cut off.
+    const controller = new AbortController();
+    let timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+    const resetTimeout = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+    };
+
     try {
       const pathname = encodePathname({
         name: name.trim(),
@@ -35,20 +51,28 @@ export default function UploadForm() {
       await upload(pathname, file!, {
         access: "public",
         handleUploadUrl: "/api/upload",
-        multipart: true,
+        multipart: file!.size > MULTIPART_THRESHOLD_BYTES,
+        abortSignal: controller.signal,
         onUploadProgress: ({ percentage }) => {
+          resetTimeout();
           setStatus({ kind: "uploading", percentage });
         },
       });
 
+      clearTimeout(timeoutId);
       setStatus({ kind: "success", filename: file!.name, name: name.trim(), topic: topic.trim() });
       setName("");
       setTopic("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
+      clearTimeout(timeoutId);
       setStatus({
         kind: "error",
-        message: err instanceof Error ? err.message : "Upload failed. Please try again.",
+        message: controller.signal.aborted
+          ? "Upload timed out. Check your connection and try again."
+          : err instanceof Error
+            ? err.message
+            : "Upload failed. Please try again.",
       });
     }
   }
