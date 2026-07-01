@@ -5,7 +5,7 @@ import { upload } from "@vercel/blob/client";
 import { encodePathname } from "@/lib/blob-naming";
 import { ALLOWED_EXTENSIONS, validateUploadForm } from "@/lib/validation";
 
-type Status = { kind: "idle" } | { kind: "uploading" } | { kind: "error"; message: string } | { kind: "success"; filename: string; name: string; topic: string };
+type Status = { kind: "idle" } | { kind: "uploading"; percentage: number } | { kind: "error"; message: string } | { kind: "success"; filename: string; name: string; topic: string };
 
 export default function UploadForm() {
   const [name, setName] = useState("");
@@ -23,7 +23,7 @@ export default function UploadForm() {
       return;
     }
 
-    setStatus({ kind: "uploading" });
+    setStatus({ kind: "uploading", percentage: 0 });
 
     try {
       const pathname = encodePathname({
@@ -35,6 +35,10 @@ export default function UploadForm() {
       await upload(pathname, file!, {
         access: "public",
         handleUploadUrl: "/api/upload",
+        multipart: true,
+        onUploadProgress: ({ percentage }) => {
+          setStatus({ kind: "uploading", percentage });
+        },
       });
 
       setStatus({ kind: "success", filename: file!.name, name: name.trim(), topic: topic.trim() });
@@ -88,8 +92,14 @@ export default function UploadForm() {
       </label>
 
       <button type="submit" disabled={uploading}>
-        {uploading ? "Uploading…" : "Upload"}
+        {status.kind === "uploading" ? `Uploading… ${Math.round(status.percentage)}%` : "Upload"}
       </button>
+
+      {status.kind === "uploading" && (
+        <div className="progress-track" role="progressbar" aria-valuenow={Math.round(status.percentage)} aria-valuemin={0} aria-valuemax={100}>
+          <div className="progress-fill" style={{ width: `${status.percentage}%` }} />
+        </div>
+      )}
 
       {status.kind === "error" && <p className="message message-error">{status.message}</p>}
       {status.kind === "success" && (
